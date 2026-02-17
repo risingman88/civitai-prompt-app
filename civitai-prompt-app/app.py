@@ -223,15 +223,20 @@ Return ONLY JSON:
     return None
 
 # ============ FALLBACK FUNCTIONS ============
-def generate_fallback_variations(seed_elements, num_variations=5):
+def generate_fallback_variations(seed_input, seed_elements, num_variations=5):
     """Fallback generation without API - follows Civitai structure"""
     variations = []
+    
+    # Pre-process seed input
+    seed_terms = split_into_terms(seed_input) if seed_input else []
     
     for _ in range(num_variations):
         parts = []
         
-        # Section 1: Subject (most important)
+        # Section 1: Subject (most important) - seed input first, then selections
         subject_parts = []
+        if seed_terms:
+            subject_parts.extend(seed_terms[:4])  # Use seed terms first
         if 'subject' in seed_elements:
             subject_parts.extend(seed_elements['subject'][:2])
         if 'body_features' in seed_elements:
@@ -456,9 +461,9 @@ with tab1:
             if use_ai and api_key:
                 results = call_minimax_api(seed_for_ai, api_key, num_variations)
                 if not results:
-                    results = generate_fallback_variations(all_selections, num_variations)
+                    results = generate_fallback_variations(seed_input, all_selections, num_variations)
             else:
-                results = generate_fallback_variations(all_selections, num_variations)
+                results = generate_fallback_variations(seed_input, all_selections, num_variations)
             
             if results:
                 st.session_state.positive_variations = [r.get('prompt', '') for r in results]
