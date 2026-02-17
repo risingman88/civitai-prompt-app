@@ -45,36 +45,52 @@ CATEGORIES = {
     'special_effects': '✨ Special Effects',
 }
 
-# Variation mappings
+# Variation mappings - maps canonical terms to their variations
 VARIATION_MAP = {
-    'sitting': ['sitting', 'seated', 'sit', 'sits', 'sitting down'],
-    'standing': ['standing', 'stand', 'stands', 'standing up'],
-    'lying': ['lying', 'lay', 'lying down', 'lies', 'laid'],
-    'realistic photograph': ['realistic photograph', 'photorealistic', 'realistic photo', 'photograph', 'photo of', 'realistic'],
-    'large breasts': ['large breasts', 'big breasts', 'huge breasts', 'massive breasts'],
-    'smile': ['smile', 'smiling', 'smiles', 'smiled'],
-    'naked': ['naked', 'nude', 'bare', 'undressed', 'unclothed'],
-    'topless': ['topless', 'topless', 'top less'],
-    'outdoor': ['outdoor', 'outside', 'outdoors'],
-    'beach': ['beach', 'seaside', 'shore', 'sand', 'tropical beach'],
-    'sunset': ['sunset', 'sundown', 'golden hour', 'dusk'],
-    'bikini': ['bikini', 'swimsuit', 'swimwear'],
-    'pinup': ['pinup pose', 'pin-up', 'pinup'],
-    'athletic': ['athletic', 'fit', 'toned', 'fitness'],
-    'curvy': ['curvy', 'curvaceous', 'hourglass figure', 'voluptuous'],
-    'blonde': ['blonde', 'blond', 'yellow hair', 'golden hair'],
-    'brunette': ['brunette', 'brown hair', 'chestnut hair'],
-    'long hair': ['long hair', 'very long hair', 'waist length hair'],
-    'short hair': ['short hair', 'short styled hair'],
-    'blue eyes': ['blue eyes', 'azure eyes', 'cerulean eyes'],
-    'green eyes': ['green eyes', 'emerald eyes', 'jade eyes'],
+    'sitting': ['sitting', 'seated', 'sit', 'sits', 'sitting down', 'sits down'],
+    'standing': ['standing', 'stand', 'stands', 'standing up', 'stands up'],
+    'lying': ['lying', 'lay', 'lying down', 'lies', 'laid', 'lies down'],
+    'realistic photograph': ['realistic photograph', 'photorealistic', 'realistic photo', 'photograph', 'photo of', 'realistic', 'real life photo'],
+    'large breasts': ['large breasts', 'big breasts', 'huge breasts', 'massive breasts', 'big breast'],
+    'smile': ['smile', 'smiling', 'smiles', 'smiled', 'smiling face'],
+    'naked': ['naked', 'nude', 'bare', 'undressed', 'unclothed', 'without clothes'],
+    'topless': ['topless', 'top less', 'top-less', 'breasts exposed'],
+    'outdoor': ['outdoor', 'outside', 'outdoors', 'outside', 'exterior'],
+    'beach': ['beach', 'seaside', 'shore', 'sand', 'tropical beach', 'beachside'],
+    'sunset': ['sunset', 'sundown', 'golden hour', 'dusk', 'sunset time'],
+    'bikini': ['bikini', 'swimsuit', 'swimwear', 'bikini bottom', 'bikini top'],
+    'pinup': ['pinup pose', 'pin-up', 'pinup', 'pin-up style'],
+    'athletic': ['athletic', 'fit', 'toned', 'fitness', 'sporty'],
+    'curvy': ['curvy', 'curvaceous', 'hourglass figure', 'voluptuous', 'curvaceous figure'],
+    'blonde': ['blonde', 'blond', 'yellow hair', 'golden hair', 'fair hair'],
+    'brunette': ['brunette', 'brown hair', 'chestnut hair', 'dark brown hair'],
+    'red hair': ['red hair', 'auburn hair', 'ginger hair', 'redhead'],
+    'long hair': ['long hair', 'very long hair', 'waist length hair', 'flowing hair'],
+    'short hair': ['short hair', 'short styled hair', 'bob cut', 'pixie cut'],
+    'blue eyes': ['blue eyes', 'azure eyes', 'cerulean eyes', 'sapphire eyes'],
+    'green eyes': ['green eyes', 'emerald eyes', 'jade eyes', 'forest green eyes'],
+    'standing': ['standing', 'stands', 'upright', 'on feet'],
+    'kneeling': ['kneeling', 'kneel', 'kneeling down', 'on knees'],
+    'squatting': ['squatting', 'squat', 'crouching', 'in a squat'],
+    'from behind': ['from behind', 'rear view', 'back view', 'seen from behind'],
+    'from above': ['from above', 'bird view', 'aerial view', 'overhead'],
+    'close-up': ['close-up', 'closeup', 'close up', 'tight shot'],
+    'full body': ['full body', 'full shot', 'entire figure', 'whole body'],
+    'portrait': ['portrait', 'portrait shot', 'face focus', 'head and shoulders'],
+    'studio': ['studio', 'photo studio', 'indoor studio', 'controlled studio'],
+    'indoor': ['indoor', 'inside', 'indoors', 'interior'],
+    'forest': ['forest', 'woods', 'trees', 'woodland', 'forested'],
+    'dynamic lighting': ['dynamic lighting', 'dramatic lighting', 'striking lighting', 'chiaroscuro'],
+    'soft lighting': ['soft lighting', '柔和光线', 'gentle lighting', 'diffused light'],
+    'natural lighting': ['natural lighting', 'daylight', 'sunlight', 'natural light'],
 }
 
 # Default quality tags
 QUALITY_TAGS = [
     'masterpiece', 'best quality', 'highres', 'absurdres', 'ultra realistic',
     'sharp focus', 'fine details', 'highly detailed', '8k', '4k', 'HDR',
-    'realism', 'realistic', 'cinematic', 'professional'
+    'realism', 'realistic', 'cinematic', 'professional', 'amazing quality',
+    'incredible quality', 'stunning', 'beautiful', 'gorgeous', 'perfect'
 ]
 
 # Default negative prompts
@@ -95,37 +111,62 @@ def get_all_loras(data):
     """Get all unique LORAs"""
     if data and 'lora_analysis' in data:
         return data['lora_analysis'].get('counts', {})
-    return {}
+    return []
 
-def generate_prompt(selections, include_quality=True, quality_tags=None):
-    """Generate a prompt from selections"""
-    parts = []
-    
-    # Add quality tags first (typical for Civitai prompts)
-    if include_quality:
-        parts.extend(quality_tags or random.sample(QUALITY_TAGS, min(3, len(QUALITY_TAGS))))
-    
-    # Add selections by category order
-    for category in CATEGORIES.keys():
-        if category in selections and selections[category]:
-            for item in selections[category]:
-                parts.append(item)
-    
-    return ', '.join(parts)
+def get_random_variation(term):
+    """Get a random variation of a term"""
+    variations = VARIATION_MAP.get(term.lower(), [term])
+    return random.choice(variations)
 
-def generate_negative_prompt(exclusions):
-    """Generate negative prompt from exclusions"""
+def generate_variations(selections, num_variations=5, include_quality=True, quality_tags=None):
+    """Generate multiple prompt variations with synonyms"""
+    variations = []
+    
+    for _ in range(num_variations):
+        parts = []
+        
+        # Add quality tags (with variations)
+        if include_quality:
+            selected_quality = random.sample(
+                quality_tags or QUALITY_TAGS[:10], 
+                min(3, len(quality_tags or QUALITY_TAGS))
+            )
+            parts.extend(selected_quality)
+        
+        # Add selections with synonym variations
+        for category, items in selections.items():
+            for item in items:
+                # Get a random variation of this term
+                variation = get_random_variation(item)
+                parts.append(variation)
+        
+        variations.append(', '.join(parts))
+    
+    return variations
+
+def generate_negative_prompt(exclusions=None):
+    """Generate negative prompt with some randomization"""
     parts = [DEFAULT_NEGATIVE]
-    for category, items in exclusions.items():
-        if items:
-            parts.extend(items)
+    
+    # Add some common exclusions randomly
+    common_negatives = [
+        "blurry", "blurred", "pixelated", "low resolution", "compression artifacts",
+        "bad anatomy", "wrong anatomy", "disfigured", "mutated",
+        "extra limbs", "missing limbs", "fused fingers", "too many fingers",
+        "ugly", "duplicate", "morbid", "mutilated", "poorly drawn"
+    ]
+    
+    # Add 2-4 random exclusions
+    random_negatives = random.sample(common_negatives, random.randint(2, 4))
+    parts.extend(random_negatives)
+    
     return ', '.join(parts)
 
 # Main app layout
 st.title("🎨 Civitai Prompt Generator")
 st.markdown("""
-This app analyzes your collected Civitai image metadata to help you generate 
-creative AI prompts. Select options from each category to build your perfect prompt!
+Build creative AI prompts with **multiple variations**! Select options from each category 
+and generate unique prompts with synonym variations.
 """)
 
 # Sidebar - Quick Stats
@@ -159,19 +200,49 @@ tab1, tab2, tab3, tab4 = st.tabs(["🎯 Build Prompt", "📚 Browse Data", "🔀
 with tab1:
     st.header("Build Your Prompt")
     
+    # Number of variations slider
+    st.subheader("⚙️ Settings")
+    col_s1, col_s2 = st.columns(2)
+    with col_s1:
+        num_variations = st.slider(
+            "Number of variations to generate",
+            min_value=1,
+            max_value=10,
+            value=5,
+            help="How many unique prompts to generate"
+        )
+    with col_s2:
+        include_quality = st.checkbox("Include Quality Tags", value=True, help="Add quality tags like 'masterpiece', '8k', etc.")
+    
+    # Quality tags input
+    if include_quality:
+        with st.expander("🎚️ Quality Tags", expanded=True):
+            quality_tags_input = st.text_area(
+                "Custom Quality Tags (comma-separated)",
+                value=', '.join(QUALITY_TAGS[:8]),
+                help="Edit these quality tags that will be randomly included"
+            )
+            quality_tags = [x.strip() for x in quality_tags_input.split(',') if x.strip()]
+    else:
+        quality_tags = []
+    
+    # Category selections
+    st.divider()
+    st.subheader("📋 Select Prompt Elements")
+    
     # Initialize session state for selections
     if 'selections' not in st.session_state:
         st.session_state.selections = {}
     
+    all_selections = {}
+    
     # Create columns for categories
     col1, col2 = st.columns(2)
-    
-    all_selections = {}
     
     for idx, (category, label) in enumerate(CATEGORIES.items()):
         # Alternate between columns
         with col1 if idx % 2 == 0 else col2:
-            st.subheader(label)
+            st.markdown(f"**{label}**")
             
             # Get available items for this category
             items = get_category_items(category, data)
@@ -182,72 +253,101 @@ with tab1:
                     f"Select {category}...",
                     options=items,
                     key=f"select_{category}",
-                    help=f"Found {len(items)} unique {category} terms in your dataset"
+                    help=f"Found {len(items)} unique {category} terms"
                 )
             else:
                 # Allow manual input
-                manual_input = st.text_area(
+                manual_input = st.text_input(
                     f"Add custom {category}...",
                     key=f"manual_{category}",
-                    help="No matches found in dataset - add your own!"
+                    placeholder="e.g., dancing, running, etc."
                 )
-                selected = [x.strip() for x in manual_input.split(',') if x.strip()] if manual_input else []
+                selected = [x.strip() for x in manual_input.split(',')] if manual_input else []
             
             if selected:
                 all_selections[category] = selected
     
-    # Quality settings
-    st.divider()
-    st.subheader("⚙️ Quality Settings")
-    
-    col_q1, col_q2 = st.columns(2)
-    with col_q1:
-        include_quality = st.checkbox("Include Quality Tags", value=True)
-    with col_q2:
-        quality_tags_input = st.text_area(
-            "Custom Quality Tags (comma-separated)",
-            value=', '.join(QUALITY_TAGS[:5]),
-            help="Common quality tags for AI image generation"
-        )
-    
-    quality_tags = [x.strip() for x in quality_tags_input.split(',') if x.strip()]
-    
     # Generate button
-    if st.button("🚀 Generate Prompt", type="primary", use_container_width=True):
-        positive = generate_prompt(all_selections, include_quality, quality_tags)
-        negative = generate_negative_prompt({})
+    st.divider()
+    if st.button("🚀 Generate Variations", type="primary", use_container_width=True):
+        with st.spinner("Generating prompt variations..."):
+            # Generate variations
+            positive_variations = generate_variations(
+                all_selections, 
+                num_variations=num_variations,
+                include_quality=include_quality,
+                quality_tags=quality_tags
+            )
+            negative_variations = [generate_negative_prompt() for _ in range(num_variations)]
+            
+            # Store in session state
+            st.session_state.positive_variations = positive_variations
+            st.session_state.negative_variations = negative_variations
+            st.session_state.generated = True
         
-        st.session_state.generated_positive = positive
-        st.session_state.generated_negative = negative
-        
-        st.success("Prompt generated!")
+        st.success(f"Generated {num_variations} unique variations!")
     
-    # Display generated prompts
-    if 'generated_positive' in st.session_state:
+    # Display generated variations
+    if 'generated' in st.session_state and st.session_state.get('generated'):
         st.divider()
-        st.subheader("✨ Generated Prompt")
+        st.subheader("✨ Generated Variations")
         
-        st.text_area(
-            "Positive Prompt",
-            value=st.session_state.generated_positive,
-            height=150,
-            key="positive_output"
+        for i, (pos, neg) in enumerate(zip(
+            st.session_state.positive_variations, 
+            st.session_state.negative_variations
+        )):
+            with st.expander(f"Variation {i+1}", expanded=(i==0)):
+                st.text_area(
+                    f"Positive Prompt #{i+1}",
+                    value=pos,
+                    height=120,
+                    key=f"pos_{i}"
+                )
+                
+                col_copy1, col_copy2 = st.columns([1, 6])
+                with col_copy1:
+                    if st.button("📋 Copy", key=f"copy_pos_{i}"):
+                        st.session_state.copied_text = pos
+                        st.toast("Copied!")
+                with col_copy2:
+                    if st.session_state.get('copied_text') == pos:
+                        st.text("✓ Copied!")
+                
+                st.markdown("---")
+                st.text_area(
+                    f"Negative Prompt #{i+1}",
+                    value=neg,
+                    height=80,
+                    key=f"neg_{i}"
+                )
+                
+                col_copy3, col_copy4 = st.columns([1, 6])
+                with col_copy3:
+                    if st.button("📋 Copy Neg", key=f"copy_neg_{i}"):
+                        st.session_state.copied_neg = neg
+                        st.toast("Negative copied!")
+                with col_copy4:
+                    if st.session_state.get('copied_neg') == neg:
+                        st.text("✓ Copied!")
+        
+        # Download all as JSON
+        st.divider()
+        all_prompts = {
+            "variations": [
+                {"positive": pos, "negative": neg}
+                for pos, neg in zip(
+                    st.session_state.positive_variations,
+                    st.session_state.negative_variations
+                )
+            ]
+        }
+        
+        st.download_button(
+            "📥 Download All as JSON",
+            json.dumps(all_prompts, indent=2),
+            file_name="prompt_variations.json",
+            mime="application/json"
         )
-        
-        if st.button("📋 Copy Positive", key="copy_pos"):
-            st.toast("Copied to clipboard!")
-        
-        st.subheader("❌ Negative Prompt")
-        
-        st.text_area(
-            "Negative Prompt",
-            value=st.session_state.generated_negative,
-            height=100,
-            key="negative_output"
-        )
-        
-        if st.button("📋 Copy Negative", key="copy_neg"):
-            st.toast("Copied to clipboard!")
 
 with tab2:
     st.header("📚 Browse Your Dataset")
@@ -314,7 +414,7 @@ with tab3:
             
             st.text(f"Source: {random_img.get('username', 'Unknown')} | Base: {random_img.get('baseModel', 'Unknown')}")
             
-            # Copy buttons
+            # Copy button
             if st.button("📋 Copy This Prompt"):
                 st.session_state.copied_prompt = random_img.get('prompt', '')
                 st.toast("Copied!")
