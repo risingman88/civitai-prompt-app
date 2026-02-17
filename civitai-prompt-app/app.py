@@ -1,6 +1,6 @@
 """
 Civitai Prompt Generator App
-A Streamlit-based interactive prompt generator with AI-powered generations
+AI-powered prompt generator following Civitai's official methodology
 """
 
 import streamlit as st
@@ -47,40 +47,19 @@ CATEGORIES = {
     'special_effects': '✨ Special Effects',
 }
 
-# Default quality tags
+# Default quality tags (placed at END of prompt per Civitai methodology)
 QUALITY_TAGS = [
     'masterpiece', 'best quality', 'highres', 'absurdres', 'ultra realistic',
     'sharp focus', 'fine details', 'highly detailed', '8k', '4k', 'HDR',
     'realism', 'realistic', 'cinematic', 'professional', 'amazing quality'
 ]
 
-DEFAULT_NEGATIVE = "score_6, score_5, score_4, worst quality, low quality, bad anatomy, bad hands, deformed, ugly, disfigured, poorly drawn face, mutation, extra fingers, fewer fingers"
-
-# Fallback suggestions for when AI is not available
-POSE_SUGGESTIONS = [
-    "arms above head", "hands on hips", "legs crossed", "one leg raised",
-    "leaning forward", "leaning back", "twisting", "bending",
-    "looking over shoulder", "head tilted", "eyes closed"
-]
-
-LIGHTING_SUGGESTIONS = [
-    "rim lighting", "backlit", "golden hour", "blue hour",
-    "neon lights", "candlelight", "moonlight", "studio strobes"
-]
-
-ENVIRONMENT_SUGGESTIONS = [
-    "luxury bedroom", "hotel room", "modern apartment", "garden terrace",
-    "balcony", "secluded beach", "yacht deck", "candlelit room"
-]
-
-EMOTION_SUGGESTIONS = [
-    "seductive", "confident", "playful", "mysterious", "romantic",
-    "sensual", "adorable", "alluring", "provocative", "dreamy"
-]
+# Standard negative prompt template
+DEFAULT_NEGATIVE = "text, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry"
 
 # ============ MINIMAX API ============
 def call_minimax_api(prompt_text, api_key, num_variations=5):
-    """Generate prompts using MiniMax API"""
+    """Generate optimized prompts using MiniMax API following Civitai methodology"""
     
     if not api_key:
         return None
@@ -90,105 +69,46 @@ def call_minimax_api(prompt_text, api_key, num_variations=5):
         "Content-Type": "application/json"
     }
     
-    user_prompt = f"""You are an expert AI art prompt engineer.
+    # Detailed prompt engineering instructions
+    system_prompt = """You are an expert AI art prompt engineer following Civitai's official methodology.
 
-Given this seed prompt: "{prompt_text}"
+STRUCTURE YOUR PROMPTS LIKE THIS:
+1. MEDIUM (optional): photo, oil painting, digital art, 3d render, pencil sketch
+2. SUBJECT: 1girl, woman, man + physical details (athletic, tall, curvy)
+3. FACE/HAIR: blue eyes, brunette, wavy hair, detailed face
+4. CLOTHING: wearing red dress, leather jacket, bikini
+5. POSE/EXPRESSION: standing, smiling, looking at viewer, arms crossed
+6. SETTING: luxury bedroom, park, beach, studio, forest
+7. LIGHTING: dramatic lighting, golden hour, soft lighting, rim lighting
+8. COMPOSITION: close-up, medium shot, full body, from above
+9. TECHNICAL (END): 8k, high resolution, sharp focus, masterpiece
 
-Generate {num_variations} creative AI image prompts based on it.
+CRITICAL RULES:
+- Use comma-separated TAGS, not natural language
+- Put most important elements FIRST (higher attention)
+- Quality tags go at the END, not start
+- Remove redundant descriptors
+- Don't mix conflicting styles (realistic + anime)
+- No URLs, HTML, or special characters
+- Weight key elements with (keyword:1.2) for emphasis
 
-Rules:
-1. Keep the core subject/style elements
-2. Add variations in: poses, emotions, lighting, settings, clothing
-3. Make each variation unique and visually interesting
-4. Use quality tags (masterpiece, highres, etc.)
+NEGATIVE PROMPT TEMPLATE:
+text, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry
 
-Return ONLY a JSON array:
-[
-  {{"prompt": "full detailed prompt here"}},
-  ...
-]
+Generate creative variations that follow this structure."""
 
-No other text. Only the JSON array."""
+    user_prompt = f"""Create {num_variations} unique image prompts based on this seed: "{prompt_text}"
 
-    try:
-        response = requests.post(
-            "https://api.minimax.chat/v1/text/chatcompletion_v2",
-            headers=headers,
-            json={
-                "model": "MiniMax-Text-01",
-                "messages": [
-                    {"role": "system", "content": "You are a creative AI art prompt expert."},
-                    {"role": "user", "content": user_prompt}
-                ],
-                "temperature": 0.9,
-                "max_tokens": 3000
-            },
-            timeout=60
-        )
-        
-        if response.status_code == 200:
-            result = response.json()
-            if 'choices' in result:
-                content = result['choices'][0]['message']['content']
-                # Clean up and parse JSON
-                content = content.strip()
-                if content.startswith('```json'):
-                    content = content[7:-3]
-                elif content.startswith('```'):
-                    content = content[3:-3]
-                parsed = json.loads(content)
-                if isinstance(parsed, list):
-                    return [p.get('prompt', p) if isinstance(p, dict) else p for p in parsed]
-    except Exception as e:
-        st.error(f"API Error: {str(e)}")
-    
-    return None
-
-def generate_ai_variations(seed_elements, api_key, num_variations=5):
-    """Generate variations using AI based on selected elements"""
-    
-    if not api_key:
-        return None
-    
-    # Build a seed prompt from selections
-    seed_parts = []
-    for category, items in seed_elements.items():
-        if items:
-            seed_parts.extend(items)
-    seed_prompt = ", ".join(seed_parts)
-    
-    if not seed_prompt.strip():
-        # Generate completely random creative prompts
-        seed_prompt = "beautiful woman"
-    
-    return call_minimax_api(seed_prompt, api_key, num_variations)
-
-def generate_ai_expansion(seed_prompt, api_key, num_variations=5):
-    """Generate creative expansions for an existing prompt"""
-    
-    if not api_key:
-        return None
-    
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-    
-    user_prompt = f"""You are an expert AI art prompt engineer.
-
-Take this prompt and create {num_variations} creative variations:
-
-Original: "{seed_prompt}"
-
-Create variations that:
-1. Add new poses, emotions, lighting, settings
-2. Keep the core subject but add creative twists
-3. Suggest story/context for the scene
-4. Include quality tags
+Requirements:
+1. Follow the tag-based structure above
+2. Group related concepts together
+3. Place subject first, quality at end
+4. Add 2-4 creative variations with different poses, settings, or moods
+5. Include appropriate negative prompts
 
 Return ONLY a JSON array:
 [
-  {{"prompt": "expanded prompt here", "description": "what changed"}},
+  {{"prompt": "full optimized prompt here", "negative": "negative prompt"}},
   ...
 ]
 
@@ -201,7 +121,84 @@ No other text. Only JSON."""
             json={
                 "model": "MiniMax-Text-01",
                 "messages": [
-                    {"role": "system", "content": "You are a creative AI art prompt expert."},
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                "temperature": 0.8,
+                "max_tokens": 4000
+            },
+            timeout=90
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            if 'choices' in result:
+                content = result['choices'][0]['message']['content']
+                content = content.strip()
+                # Clean up JSON
+                if content.startswith('```json'):
+                    content = content[7:-3]
+                elif content.startswith('```'):
+                    content = content[3:-3]
+                parsed = json.loads(content)
+                if isinstance(parsed, list):
+                    results = []
+                    for item in parsed:
+                        if isinstance(item, dict):
+                            prompt = item.get('prompt', '')
+                            negative = item.get('negative', DEFAULT_NEGATIVE)
+                            results.append({'prompt': prompt, 'negative': negative})
+                        else:
+                            results.append({'prompt': str(item), 'negative': DEFAULT_NEGATIVE})
+                    return results
+    except Exception as e:
+        st.error(f"API Error: {str(e)}")
+    
+    return None
+
+def expand_with_ai(seed_prompt, api_key, num_expansions=5):
+    """Expand a prompt with creative variations using AI"""
+    
+    if not api_key:
+        return None
+    
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    
+    system_prompt = """You are an expert AI art prompt engineer.
+
+Given a prompt, create creative expansions following Civitai's methodology:
+- Add new poses, expressions, settings, or moods
+- Keep subject consistent but vary the context
+- Add 2-4 key creative elements
+- Maintain the tag-based structure"""
+
+    user_prompt = f"""Expand this prompt with creative variations:
+
+"{seed_prompt}"
+
+Create {num_expansions} variations that:
+1. Change pose/expression
+2. Change setting/environment  
+3. Change lighting/atmosphere
+4. Create a "creative mix" combining elements
+
+Return ONLY JSON:
+[
+  {{"prompt": "expanded prompt", "description": "what changed"}},
+  ...
+]"""
+
+    try:
+        response = requests.post(
+            "https://api.minimax.chat/v1/text/chatcompletion_v2",
+            headers=headers,
+            json={
+                "model": "MiniMax-Text-01",
+                "messages": [
+                    {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
                 "temperature": 0.9,
@@ -227,75 +224,99 @@ No other text. Only JSON."""
 
 # ============ FALLBACK FUNCTIONS ============
 def generate_fallback_variations(seed_elements, num_variations=5):
-    """Fallback when no API key - uses random suggestions"""
+    """Fallback generation without API - follows Civitai structure"""
     variations = []
     
     for _ in range(num_variations):
         parts = []
         
-        # Add quality tags
-        parts.extend(random.sample(QUALITY_TAGS[:8], min(4, len(QUALITY_TAGS))))
+        # Section 1: Subject (most important)
+        subject_parts = []
+        if 'subject' in seed_elements:
+            subject_parts.extend(seed_elements['subject'][:2])
+        if 'body_features' in seed_elements:
+            subject_parts.extend(seed_elements['body_features'][:2])
+        if 'hair' in seed_elements:
+            subject_parts.extend(seed_elements['hair'][:2])
+        if subject_parts:
+            parts.append(", ".join(subject_parts))
         
-        # Add seed elements
-        for category, items in seed_elements.items():
-            if items:
-                parts.extend(items)
+        # Section 2: Clothing
+        if 'clothing' in seed_elements:
+            parts.append(", ".join(seed_elements['clothing'][:2]))
         
-        # Add random creative elements
-        parts.append(random.choice(POSE_SUGGESTIONS))
-        parts.append(random.choice(LIGHTING_SUGGESTIONS))
-        parts.append(random.choice(ENVIRONMENT_SUGGESTIONS))
+        # Section 3: Pose & Expression
+        if 'pose' in seed_elements:
+            parts.append(", ".join(seed_elements['pose'][:2]))
+        if 'emotion' in seed_elements:
+            parts.append(", ".join(seed_elements['emotion'][:2]))
         
-        variations.append(", ".join(parts))
+        # Section 4: Environment
+        if 'environment' in seed_elements:
+            parts.append(", ".join(seed_elements['environment'][:2]))
+        
+        # Section 5: Lighting & Style
+        if 'lighting' in seed_elements:
+            parts.append(", ".join(seed_elements['lighting'][:2]))
+        if 'art_style' in seed_elements:
+            parts.append(", ".join(seed_elements['art_style'][:2]))
+        
+        # Section 6: Composition
+        if 'composition' in seed_elements:
+            parts.append(", ".join(seed_elements['composition'][:2]))
+        if 'camera' in seed_elements:
+            parts.append(", ".join(seed_elements['camera'][:2]))
+        
+        # Section 7: Quality (END)
+        quality = random.sample(QUALITY_TAGS[:8], min(4, len(QUALITY_TAGS)))
+        parts.append(", ".join(quality))
+        
+        variations.append({
+            'prompt': ", ".join(parts),
+            'negative': DEFAULT_NEGATIVE
+        })
     
     return variations
 
-def generate_fallback_expansion(seed_prompt, num_variations=5):
-    """Fallback expansion without AI"""
+def generate_fallback_expansion(seed_prompt, num_expansions=5):
+    """Fallback expansion without API"""
     expansions = []
     
     # Pose variation
     expansions.append({
-        "prompt": seed_prompt + ", " + random.choice(POSE_SUGGESTIONS),
-        "description": "New pose added"
+        'prompt': seed_prompt + ", dynamic pose, arms in motion",
+        'description': 'New pose'
     })
     
     # Lighting variation
     expansions.append({
-        "prompt": seed_prompt + ", " + random.choice(LIGHTING_SUGGESTIONS),
-        "description": "New lighting"
+        'prompt': seed_prompt + ", dramatic lighting, rim light",
+        'description': 'New lighting'
     })
     
-    # Environment variation
+    # Setting variation
     expansions.append({
-        "prompt": seed_prompt + ", in " + random.choice(ENVIRONMENT_SUGGESTIONS),
-        "description": "New setting"
+        'prompt': seed_prompt + ", in luxury setting, ornate background",
+        'description': 'New setting'
     })
     
     # Emotion variation
     expansions.append({
-        "prompt": seed_prompt + ", " + random.choice(EMOTION_SUGGESTIONS),
-        "description": "New mood"
+        'prompt': seed_prompt + ", intense gaze, powerful expression",
+        'description': 'New mood'
     })
     
     # Full creative
-    creative = [
-        seed_prompt,
-        random.choice(POSE_SUGGESTIONS),
-        random.choice(EMOTION_SUGGESTIONS),
-        random.choice(LIGHTING_SUGGESTIONS),
-        "in " + random.choice(ENVIRONMENT_SUGGESTIONS)
-    ]
     expansions.append({
-        "prompt": ", ".join(creative),
-        "description": "Creative mix"
+        'prompt': seed_prompt + ", cinematic composition, golden hour lighting, (masterpiece:1.2)",
+        'description': 'Creative mix'
     })
     
-    return expansions[:num_variations]
+    return expansions[:num_expansions]
 
 # ============ HELPER FUNCTIONS ============
 def get_category_items(category, data):
-    """Get all unique items from a category"""
+    """Get unique items from dataset"""
     if data and 'categorized_images' in data:
         items = set()
         for img in data['categorized_images']:
@@ -308,15 +329,6 @@ def get_category_items(category, data):
 def split_into_terms(text):
     terms = re.split(r'[,;\n]+', text)
     return [t.strip() for t in terms if t.strip()]
-
-def generate_negative_prompt():
-    parts = [DEFAULT_NEGATIVE]
-    common_negatives = [
-        "blurry", "pixelated", "low resolution", "bad anatomy",
-        "mutated", "extra limbs", "disfigured", "fused fingers"
-    ]
-    parts.extend(random.sample(common_negatives, random.randint(2, 4)))
-    return ', '.join(parts)
 
 # ============ SESSION STATE ============
 if 'generated' not in st.session_state:
@@ -335,30 +347,28 @@ if 'show_expansion' not in st.session_state:
 # ============ MAIN APP ============
 st.title("🎨 Civitai Prompt Generator")
 st.markdown("""
-Build creative AI prompts with **AI-powered variations**! Select elements 
-or enter a seed, and generate unique prompts with MiniMax AI.
+**AI-powered prompt generator** following Civitai's official methodology.
+
+Built with **tag-based structure** for optimal Stable Diffusion results.
 """)
 
-# Sidebar - API Settings & Stats
+# Sidebar
 with st.sidebar:
     st.header("⚙️ AI Settings")
     
-    # API Key
     api_key = st.text_input(
         "MiniMax API Key",
         type="password",
-        help="Enter MiniMax API key for AI-powered generations"
+        help="Enter MiniMax API key for AI generations"
     )
     
-    # AI Mode toggle
     use_ai = st.checkbox(
         "Use AI for generations", 
         value=bool(api_key),
-        disabled=not api_key,
-        help="When enabled, all prompt generations use MiniMax AI"
+        disabled=not api_key
     )
     
-    st.info("💡 Without API key, uses random fallback suggestions")
+    st.info("💡 Without API key, uses structured fallback")
     
     st.markdown("---")
     
@@ -366,41 +376,39 @@ with st.sidebar:
     if data:
         st.metric("Total Images", data.get('metadata', {}).get('total_images', 0))
         st.metric("With Prompts", data.get('metadata', {}).get('with_prompts', 0))
-        lora_count = len(data.get('lora_analysis', {}).get('counts', {}))
-        st.metric("Unique LORAs", lora_count)
     else:
         st.warning("No data loaded!")
 
-# Main content
-tab1, tab2, tab3, tab4 = st.tabs(["🎯 Build Prompt", "📚 Browse Data", "🔀 Random Generator", "📦 LORA Insights"])
+# Main tabs
+tab1, tab2, tab3 = st.tabs(["🎯 Build Prompt", "📚 Browse Data", "🔀 Random"])
 
 with tab1:
-    st.header("Build Your Prompt")
+    st.header("Build Optimized Prompts")
     
     # Settings
     st.subheader("⚙️ Settings")
     col_s1, col_s2, col_s3 = st.columns(3)
     with col_s1:
-        num_variations = st.slider("Number of variations", 1, 10, 5)
+        num_variations = st.slider("Variations", 1, 10, 5)
     with col_s2:
-        clear_prev = st.checkbox("Clear previous results", value=True)
+        clear_prev = st.checkbox("Clear previous", value=True)
     with col_s3:
-        st.text(f"Mode: {'🤖 AI' if use_ai else '🎲 Random'}")
+        mode = "🤖 AI" if use_ai else "🎲 Structured"
+        st.text(f"Mode: {mode}")
     
-    # Quick seed input
+    # Seed input
     st.divider()
-    st.subheader("✏️ Quick Seed")
+    st.subheader("✏️ Seed Prompt")
+    st.caption("Enter a description or select elements below")
     seed_input = st.text_area(
-        "Enter a seed prompt or description",
+        "Describe what you want",
         value="",
-        placeholder="e.g., beautiful woman in elegant dress, futuristic cityscape",
-        help="This will be used as the base for AI generations"
+        placeholder="e.g., beautiful woman in elegant dress at sunset"
     )
     
     # Category selections
     st.divider()
-    st.subheader("📋 Or Select Elements")
-    st.caption("Select from your dataset OR enter a seed above (seed takes priority)")
+    st.subheader("📋 Select Elements")
     
     all_selections = {}
     col1, col2 = st.columns(2)
@@ -413,20 +421,20 @@ with tab1:
             
             if items:
                 selected = st.multiselect(
-                    f"Select {category}...",
+                    f"Select...",
                     options=items,
-                    key=f"select_{category}_{idx}"
+                    key=f"sel_{category}_{idx}"
                 )
             else:
-                manual = st.text_input(f"Add {category}...", key=f"manual_{category}_{idx}")
+                manual = st.text_input(f"Add {label}...", key=f"man_{category}_{idx}")
                 selected = [x.strip() for x in manual.split(',')] if manual else []
             
             if selected:
                 all_selections[category] = selected
     
-    # Generate button
+    # Generate
     st.divider()
-    if st.button("🚀 Generate Variations", type="primary", use_container_width=True):
+    if st.button("🚀 Generate Prompts", type="primary", use_container_width=True):
         if clear_prev:
             st.session_state.generated = False
             st.session_state.positive_variations = []
@@ -434,57 +442,54 @@ with tab1:
             st.session_state.expanded_prompts = {}
             st.session_state.show_expansion = {}
         
-        with st.spinner("🤖 AI is generating creative variations..." if use_ai else "🎲 Generating variations..."):
-            # Build seed for AI
+        with st.spinner("🤖 AI generating optimized prompts..." if use_ai else "🎲 Building structured prompts..."):
+            # Build seed from input or selections
             seed_parts = []
             if seed_input:
                 seed_parts.extend(split_into_terms(seed_input))
             for category, items in all_selections.items():
                 if items:
                     seed_parts.extend(items)
-            
             seed_for_ai = seed_input if seed_input else (", ".join(seed_parts) if seed_parts else "beautiful woman")
             
             # Generate variations
             if use_ai and api_key:
-                variations = generate_ai_variations(all_selections, api_key, num_variations)
-                if not variations:
-                    variations = generate_fallback_variations(all_selections, num_variations)
+                results = call_minimax_api(seed_for_ai, api_key, num_variations)
+                if not results:
+                    results = generate_fallback_variations(all_selections, num_variations)
             else:
-                variations = generate_fallback_variations(all_selections, num_variations)
+                results = generate_fallback_variations(all_selections, num_variations)
             
-            negative_variations = [generate_negative_prompt() for _ in range(num_variations)]
-            
-            st.session_state.positive_variations = variations
-            st.session_state.negative_variations = negative_variations
-            st.session_state.generated = True
-            st.session_state.generation_count += 1
+            if results:
+                st.session_state.positive_variations = [r.get('prompt', '') for r in results]
+                st.session_state.negative_variations = [r.get('negative', DEFAULT_NEGATIVE) for r in results]
+                st.session_state.generated = True
+                st.session_state.generation_count += 1
         
-        mode = "🤖 AI" if use_ai else "🎲 Random"
-        st.success(f"{mode} Generated {num_variations} unique variations!")
+        st.success(f"Generated {num_variations} optimized prompts!")
     
     # Display results
     if st.session_state.generated and st.session_state.positive_variations:
         st.divider()
-        st.subheader(f"✨ Generated Variations (Gen #{st.session_state.generation_count}) [{'AI' if use_ai else 'Random'}]")
+        st.subheader(f"✨ Generated Prompts (Gen #{st.session_state.generation_count})")
         
         for i, (pos, neg) in enumerate(zip(
-            st.session_state.positive_variations, 
+            st.session_state.positive_variations,
             st.session_state.negative_variations
         )):
-            variation_key = f"var_{i}"
+            var_key = f"var_{i}"
             
-            with st.expander(f"Variation {i+1}", expanded=(i==0)):
+            with st.expander(f"Prompt {i+1}", expanded=(i==0)):
                 st.text_area(
                     f"Positive #{i+1}",
                     value=pos,
-                    height=120,
+                    height=140,
                     key=f"pos_{i}_{st.session_state.generation_count}"
                 )
                 
                 col_cp, _ = st.columns([1, 6])
                 with col_cp:
-                    if st.button("📋 Copy", key=f"copy_{i}_{st.session_state.generation_count}"):
+                    if st.button("📋 Copy", key=f"cp_{i}_{st.session_state.generation_count}"):
                         st.session_state.copied = pos
                         st.toast("Copied!")
                 
@@ -500,48 +505,47 @@ with tab1:
                 st.divider()
                 col_exp, col_cp2 = st.columns([2, 1])
                 with col_exp:
-                    if st.button(f"✨ Expand This Prompt", key=f"expand_{i}_{st.session_state.generation_count}"):
-                        with st.spinner("🤖 AI expanding..." if use_ai else "🎲 Generating..."):
+                    if st.button(f"✨ Expand This Prompt", key=f"exp_{i}_{st.session_state.generation_count}"):
+                        with st.spinner("🤖 AI expanding..." if use_ai else "🎲 Expanding..."):
                             if use_ai and api_key:
-                                expansions = generate_ai_expansion(pos, api_key)
+                                expansions = expand_with_ai(pos, api_key, 5)
                                 if not expansions:
                                     expansions = generate_fallback_expansion(pos, 5)
                             else:
                                 expansions = generate_fallback_expansion(pos, 5)
                             
-                            st.session_state.expanded_prompts[variation_key] = expansions or []
-                            st.session_state.show_expansion[variation_key] = True
+                            st.session_state.expanded_prompts[var_key] = expansions or []
+                            st.session_state.show_expansion[var_key] = True
                             st.rerun()
                 with col_cp2:
-                    if st.button("📋 Neg", key=f"copy_neg_{i}_{st.session_state.generation_count}"):
-                        st.toast("Negative copied!")
+                    if st.button("📋 Neg", key=f"cpn_{i}_{st.session_state.generation_count}"):
+                        st.toast("Copied!")
                 
                 # Show expansions
-                if st.session_state.show_expansion.get(variation_key) and variation_key in st.session_state.expanded_prompts:
-                    expansions = st.session_state.expanded_prompts[variation_key]
+                if st.session_state.show_expansion.get(var_key) and var_key in st.session_state.expanded_prompts:
+                    expansions = st.session_state.expanded_prompts[var_key]
                     
                     st.divider()
                     st.markdown("### ✨ Creative Expansions")
                     
-                    if expansions:
-                        for j, exp in enumerate(expansions):
-                            prompt = exp.get('prompt', '') if isinstance(exp, dict) else exp
-                            desc = exp.get('description', '') if isinstance(exp, dict) else ''
-                            
-                            with st.expander(f"Expansion {j+1}" + (f" - {desc}" if desc else "")):
-                                st.text_area(
-                                    f"Expanded #{j+1}",
-                                    value=prompt,
-                                    height=80,
-                                    key=f"exp_{variation_key}_{j}"
-                                )
-                                col_c, _ = st.columns([1, 5])
-                                with col_c:
-                                    if st.button("📋", key=f"copy_exp_{variation_key}_{j}"):
-                                        st.toast("Copied!")
+                    for j, exp in enumerate(expansions):
+                        prompt = exp.get('prompt', '') if isinstance(exp, dict) else exp
+                        desc = exp.get('description', '') if isinstance(exp, dict) else ''
+                        
+                        with st.expander(f"Variation {j+1}" + (f" - {desc}" if desc else "")):
+                            st.text_area(
+                                f"Expanded #{j+1}",
+                                value=prompt,
+                                height=80,
+                                key=f"exp_{var_key}_{j}"
+                            )
+                            col_c, _ = st.columns([1, 6])
+                            with col_c:
+                                if st.button("📋", key=f"cpe_{var_key}_{j}"):
+                                    st.toast("Copied!")
                     
-                    if st.button("▼ Hide", key=f"hide_{variation_key}"):
-                        st.session_state.show_expansion[variation_key] = False
+                    if st.button("▼ Hide", key=f"hide_{var_key}"):
+                        st.session_state.show_expansion[var_key] = False
                         st.rerun()
         
         # Download
@@ -557,65 +561,46 @@ with tab1:
         }
         
         st.download_button(
-            "📥 Download All as JSON",
+            "📥 Download All",
             json.dumps(all_prompts, indent=2),
-            file_name="prompt_variations.json",
+            file_name="optimized_prompts.json",
             mime="application/json"
         )
         
-        if st.button("🗑️ Clear Results"):
+        if st.button("🗑️ Clear"):
             st.session_state.generated = False
             st.session_state.positive_variations = []
-            st.session_state.negative_variations = []
             st.session_state.generation_count = 0
-            st.session_state.expanded_prompts = {}
-            st.session_state.show_expansion = {}
             st.rerun()
 
 with tab2:
-    st.header("📚 Browse Your Dataset")
+    st.header("📚 Browse Dataset")
     if data and 'categorized_images' in data:
         filter_base = st.selectbox(
-            "Filter by Base Model",
+            "Filter by Model",
             options=['All'] + sorted(set(img.get('baseModel', 'Unknown') for img in data['categorized_images']))
         )
-        search_term = st.text_input("Search Prompts", placeholder="Search...")
         
         filtered = data['categorized_images']
         if filter_base != 'All':
             filtered = [img for img in filtered if img.get('baseModel') == filter_base]
-        if search_term:
-            search = search_term.lower()
-            filtered = [img for img in filtered if search in img.get('prompt', '').lower()]
         
         st.metric("Showing", f"{len(filtered)} images")
         
         for img in filtered[:15]:
-            with st.expander(f"ID: {img.get('id')} - {img.get('baseModel', 'Unknown')}"):
+            with st.expander(f"ID: {img.get('id')}"):
                 st.code(img.get('prompt', 'N/A')[:600])
     else:
-        st.warning("No data available!")
+        st.warning("No data!")
 
 with tab3:
-    st.header("🎲 Random Generator")
+    st.header("🔀 Random Generator")
     if data and 'categorized_images' in data:
-        if st.button("🎲 Generate Random Prompt", type="primary"):
+        if st.button("🎲 Random Prompt", type="primary"):
             random_img = random.choice(data['categorized_images'])
             st.code(random_img.get('prompt', 'N/A'))
-            st.text(f"Base: {random_img.get('baseModel', 'Unknown')}")
     else:
-        st.warning("No data available!")
-
-with tab4:
-    st.header("📦 LORA Insights")
-    if data and 'lora_analysis' in data:
-        lora_data = data['lora_analysis']
-        loras = lora_data.get('counts', {})
-        lora_df = [{'LORA': name, 'Count': count} for name, count in list(loras.items())[:20]]
-        if lora_df:
-            st.dataframe(lora_df, use_container_width=True)
-    else:
-        st.warning("No LORA data available!")
+        st.warning("No data!")
 
 st.divider()
 st.caption("🎨 Civitai Prompt Generator | Powered by MiniMax AI")
